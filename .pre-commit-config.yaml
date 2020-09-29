@@ -1,0 +1,17 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+-   repo: https://github.com/psf/black
+    rev: 19.10b0
+    hooks:
+    -   id: black
+        exclude: '^tests/cosmetic/'
+-   repo: https://github.com/pre-commit/mirrors-isort
+    rev: v4.3.21
+    hooks:
+    -   id: isort
+        additional_dependencies: [toml]
+-   repo: https://github.com/asottile/setup-cfg-fmt
+    rev: v1.9.0
+    hooks:
+    -   id: setup-cfg-fmt
