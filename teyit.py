@@ -246,6 +246,9 @@ def _adjust_comments(comments, arg_offset):
 
 
 def rewrite_source(source, *, blacklist=frozenset()):
+    if len(source) == 0:
+        return source, []
+
     tree = ast.parse(source)
     rewriter = _AssertRewriter(blacklist=blacklist)
     rewriter.visit(tree)
