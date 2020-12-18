@@ -9,16 +9,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - uses: deadsnakes/action@v1.0.0
-      with:
-        python-version: 3.9-dev
-    - name: set PY
-      run: echo "::set-env name=PY::$(python -c 'import hashlib, sys;print(hashlib.sha256(sys.version.encode()+sys.executable.encode()).hexdigest())')"
 
-    - uses: actions/cache@v1
+    - uses: actions/setup-python@v2
       with:
-        path: ~/.cache/pre-commit
-        key: pre-commit|${{ env.PY }}|${{ hashFiles('.pre-commit-config.yaml') }}
+        python-version: '3.9'
+    
     - uses: pre-commit/action@v1.1.0
 
     - name: Build Teyit
