@@ -4,5 +4,4 @@
     entry: teyit
     language: python
     language_version: python3.9
-    verbose: true
     types: [python]
