@@ -206,6 +206,10 @@ class TeyitTestCase(unittest.TestCase):
             "self.assertNotRegexpMatches(x, y, msg=msg)",
             "self.assertNotRegex(x, y, msg=msg)",
         )
+        self.assertRewrites(
+            "self.assertDictContainsSubset(x, y, msg=msg)",
+            "self.assertEqual(y, {**y, **x}, msg=msg)",
+        )
 
     def test_assert_rewriter_cosmetic(self):
         for case in (TEST_DATA_DIR / "cosmetic").iterdir():
