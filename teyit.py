@@ -158,6 +158,16 @@ class _AssertRewriter(ast.NodeVisitor):
     def visit_assertIsNot(self, node):
         return self.visit_assertIs(node, positive=False)
 
+    def visit_assertDictContainsSubset(self, node):
+        left, right, *args = node.args
+        func = "assertEqual"
+        args = [
+            right,
+            ast.Dict(keys=[None, None], values=[right, left]),
+            *args,
+        ]
+        return Rewrite(node, func, args)
+
 
 class _FormattedUnparser(ast._Unparser):
     # do not use private APIs, unless you
