@@ -198,6 +198,14 @@ class TeyitTestCase(unittest.TestCase):
             "self.assertNotAlmostEquals(x, y, z, msg=msg)",
             "self.assertNotAlmostEqual(x, y, z, msg=msg)",
         )
+        self.assertRewrites(
+            "self.assertRegexpMatches(x, y, msg=msg)",
+            "self.assertRegex(x, y, msg=msg)",
+        )
+        self.assertRewrites(
+            "self.assertNotRegexpMatches(x, y, msg=msg)",
+            "self.assertNotRegex(x, y, msg=msg)",
+        )
 
     def test_assert_rewriter_cosmetic(self):
         for case in (TEST_DATA_DIR / "cosmetic").iterdir():
