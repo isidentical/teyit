@@ -1,35 +1,37 @@
-name: CI
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - '*'
 
-on: [push, pull_request]
-
-env:
-  FORCE_COLOR: 1
+name: Tests
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        pyv: ["3.9", "3.10"]
 
     steps:
     - uses: actions/checkout@v2
 
     - uses: actions/setup-python@v2
       with:
-        python-version: '3.9'
-    
-    - uses: pre-commit/action@v1.1.0
+        python-version: ${{ matrix.pyv }}
 
-    - name: Build Teyit
-      run: python setup.py sdist
+    - name: Install dependencies
+      run: |
+        python -m pip install -r requirements-dev.txt
+        python -m pip install -e .
 
-    - name: Run teyit
-      run: python -m pip install pytest && python -m pytest
-
-    - name: Publish
-      if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
-      uses: pypa/gh-action-pypi-publish@master
-      with:
-        user: __token__
-        password: ${{ secrets.pypi_token }}
+    - name: Test
+      run: python -m pytest
 
   cpython:
     runs-on: ubuntu-latest
@@ -52,8 +54,13 @@ jobs:
       with:
         path: teyit
 
-    - name: Run Teyit on Tests
-      run: ./python teyit/teyit.py Lib/test --show-stats
+    - name: Install teyit
+      run: |
+        ./python -m ensurepip
+        ./python -m pip install --user teyit
+
+    - name: Run Teyit
+      run: ./python -m teyit Lib/test --show-stats
 
     - name: Tests
       run: ./python -m test -j8 $(git diff --name-only -- Lib/test | ./python -c "import sys;print(*[file.removeprefix('Lib/test/').removesuffix('.py') for file in sys.stdin.read().splitlines()], sep=' ')")

@@ -9,6 +9,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import List
 
+from refactor.ast import PreciseUnparser
+
 OPERATOR_TABLE = {
     ast.Eq: "assertEqual",
     ast.NotEq: "assertNotEqual",
@@ -169,9 +171,7 @@ class _AssertRewriter(ast.NodeVisitor):
         return Rewrite(node, func, args)
 
 
-class _FormattedUnparser(ast._Unparser):
-    # do not use private APIs, unless you
-    # authored it :P
+class _FormattedUnparser(PreciseUnparser):
     def __init__(self, indent_width=4, comments=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._is_first_call = True
@@ -207,15 +207,20 @@ class _FormattedUnparser(ast._Unparser):
         self.write(")")
 
 
-def as_source(node, *, is_multi_line=False, comments=None, next_indent=4):
+def as_source(
+    source, node, *, is_multi_line=False, comments=None, next_indent=4
+):
     indent = node.col_offset
-    source = ast.unparse(node)
     if is_multi_line:
         formatted_unparser = _FormattedUnparser(
-            indent_width=next_indent, comments=comments
+            source=source, indent_width=next_indent, comments=comments
         )
         formatted_unparser._indent = node.col_offset // next_indent
-        source = formatted_unparser.visit(node)
+        source = formatted_unparser.unparse(node)
+    else:
+        regular_unparser = PreciseUnparser(source=source)
+        source = regular_unparser.unparse(node)
+
     source = " " * indent + source
     if comments is not None and len(comments) >= 1 and not is_multi_line:
         source += " " + comments.popitem()[1]
@@ -261,6 +266,7 @@ def rewrite_source(source, *, blacklist=frozenset()):
     if len(source) == 0:
         return source, []
 
+    original_source = source
     tree = ast.parse(source)
     rewriter = _AssertRewriter(blacklist=blacklist)
     rewriter.visit(tree)
@@ -276,6 +282,7 @@ def rewrite_source(source, *, blacklist=frozenset()):
         )
         comments = recover_comments(lines[start:end])
         new_source = as_source(
+            original_source,
             rewrite.build_node(),
             is_multi_line=end - 1 - start,
             comments=_adjust_comments(comments, rewrite.get_arg_offset()),

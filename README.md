@@ -1,5 +1,5 @@
 # Teyit
-A static analyzer and a refactoring tool to rewrite your unittest assertions in the right way.
+An analyzer / formatter for your Python unit tests (more specifically, the tests written with the `unittest` module).
 
 ## Usage
 ```
@@ -14,71 +14,78 @@ optional arguments:
   --show-stats       Print out some debug stats related about refactorings
   --fail-on-change   Exit with status code 1 if any file changed
 ```
+
 ### Pre-commit Hook
-```
+```yaml
 -   repo: https://github.com/isidentical/teyit
     rev: master
     hooks:
     -   id: teyit
 ```
 
-### Public API
-- `teyit.refactor(source: str, **kwargs) -> str`, Shortcut to `refactor_until_deterministic`, for only retrieving the source code.
-- `def refactor_until_deterministic(source: str, blacklist: FrozenSet[str] = frozenset(), *, max: int = 5) -> Tuple[str, List[Rewrite]]`, Run `rewrite_source` until it can't refactor no more (or the `max` limit reached).
-- `def rewrite_source(source: str, *, blacklist: FrozenSet[str] = frozenset()): -> Tuple[str, List[Rewrite]]`, Refactor the source code changing assertion cases to the right forms. The `blacklist` parameter is a frozenset of functions that shouldn't refactored (e.g: `frozenset(('assertX', 'assertY'))`).
-
 ## Examples
-These are some examples inside of the CPython itself. It is the primary
-test target for teyit (since it is the biggest codebase that uses unittest
-AFAIK). On the CI we build the master branch of it with refactoring the test suite with
-teyit (it found over 1000 cases) and run the tests to see if any behavior changed.
+Here are some examples from CPython's test suite:
+
 ```diff
->>> b/Lib/test/test_telnetlib.py
--        self.assertTrue(len(cmd) > 0) # we expect at least one command
-+        self.assertGreater(len(cmd), 0) # we expect at least one command
->>> b/Lib/test/test___future__.py
-@@ -13,9 +13,10 @@ class FutureTest(unittest.TestCase):
+--- a/Lib/test/test_telnetlib.py
++++ b/Lib/test/test_telnetlib.py
+@@ -48,7 +48,7 @@ def testContextManager(self):
+         self.assertIsNone(tn.get_socket())
+
+     def testTimeoutDefault(self):
+-        self.assertTrue(socket.getdefaulttimeout() is None)
++        self.assertIsNone(socket.getdefaulttimeout())
+         socket.setdefaulttimeout(30)
+         try:
+             telnet = telnetlib.Telnet(HOST, self.port)
+@@ -215,7 +215,7 @@ def test_read_some(self):
+         # test 'at least one byte'
+         telnet = test_telnet([b'x' * 500])
+         data = telnet.read_some()
+-        self.assertTrue(len(data) >= 1)
++        self.assertGreaterEqual(len(data), 1)
+         # test EOF
+         telnet = test_telnet()
+         data = telnet.read_some()
+```
+
+```
+--- a/Lib/test/test___future__.py
++++ b/Lib/test/test___future__.py
+@@ -13,8 +13,9 @@ def test_names(self):
          for name in dir(__future__):
              obj = getattr(__future__, name, None)
              if obj is not None and isinstance(obj, __future__._Feature):
 -                self.assertTrue(
 -                    name in given_feature_names,
--                    "%r should have been in all_feature_names" % name
 +                self.assertIn(
 +                    name,
 +                    given_feature_names,
-+                    '%r should have been in all_feature_names' % name
+                     "%r should have been in all_feature_names" % name
                  )
->>> b/Lib/test/test_abc.py
-@@ -321,14 +321,14 @@ def test_factory(abc_ABCMeta, abc_get_cache_token):
+                 given_feature_names.remove(name)
+```
+
+```
+--- a/Lib/test/test_abc.py
++++ b/Lib/test/test_abc.py
+@@ -321,14 +321,14 @@ class A(metaclass=abc_ABCMeta):
              class B:
                  pass
              b = B()
 -            self.assertFalse(isinstance(b, A))
+-            self.assertFalse(isinstance(b, (A,)))
 +            self.assertNotIsInstance(b, A)
-             token_old = abc_get_cache_token()
-             A.register(B)
-             token_new = abc_get_cache_token()
-             self.assertGreater(token_new, token_old)
--            self.assertTrue(isinstance(b, A))
-+            self.assertIsInstance(b, A)
->>> b/Lib/test/test_array.py
-@@ -456,39 +456,39 @@ class BaseTest:
- 
-     def test_cmp(self):
-         a = array.array(self.typecode, self.example)
--        self.assertIs(a == 42, False)
--        self.assertIs(a != 42, True)
-+        self.assertNotEqual(a, 42)
-+        self.assertNotEqual(a, 42)
->>> b/Lib/test/test_asyncore.py
-@@ -306,7 +306,7 @@ class DispatcherTests(unittest.TestCase):
-         if hasattr(os, 'strerror'):
-             self.assertEqual(err, os.strerror(errno.EPERM))
-         err = asyncore._strerror(-1)
--        self.assertTrue(err != "")
-+        self.assertNotEqual(err, '')
->>> b/Lib/test/test_bigmem.py
++            self.assertNotIsInstance(b, (A,))
+```
+
+```
+--- a/Lib/test/test_bigmem.py
++++ b/Lib/test/test_bigmem.py
+@@ -536,25 +536,25 @@ def test_contains(self, size):
+         edge = _('-') * (size // 2)
+         s = _('').join([edge, SUBSTR, edge])
+         del edge
 -        self.assertTrue(SUBSTR in s)
 -        self.assertFalse(SUBSTR * 2 in s)
 -        self.assertTrue(_('-') in s)
@@ -87,11 +94,18 @@ teyit (it found over 1000 cases) and run the tests to see if any behavior change
 +        self.assertNotIn(SUBSTR * 2, s)
 +        self.assertIn(_('-'), s)
 +        self.assertNotIn(_('a'), s)
->>> b/Lib/test/test_builtin.py
-@@ -175,7 +175,7 @@ class BuiltinTest(unittest.TestCase):
-         self.assertEqual(abs(0), 0)
-         self.assertEqual(abs(1234), 1234)
-         self.assertEqual(abs(-1234), 1234)
--        self.assertTrue(abs(-sys.maxsize-1) > 0)
-+        self.assertGreater(abs(-sys.maxsize - 1), 0)
 ```
+
+## Public API
+
+#### `teyit.refactor(source: str, **kwargs) -> str`
+
+Shortcut to `refactor_until_deterministic`, for only retrieving the source code.
+
+#### `def refactor_until_deterministic(source: str, blacklist: FrozenSet[str] = frozenset(), *, max: int = 5) -> Tuple[str, List[Rewrite]]`
+
+Run `rewrite_source` until it can't refactor no more (or the `max` limit reached).
+
+#### `def rewrite_source(source: str, *, blacklist: FrozenSet[str] = frozenset()): -> Tuple[str, List[Rewrite]]`
+
+Refactor the source code changing assertion cases to the right forms. The `blacklist` parameter is a frozenset of functions that shouldn't refactored (e.g: `frozenset(('assertX', 'assertY'))`).

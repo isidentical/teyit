@@ -29,5 +29,5 @@ class TestCase(unittest.TestCase):
         )
         self.assertIsNone(
             x, # this is X
-            msg='test' # this is the message
+            msg="test" # this is the message
         )
