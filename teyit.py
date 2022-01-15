@@ -330,7 +330,8 @@ def _show_debug_stats(modified_files, refactors):
             "times.",
         )
     print(
-        f"{len(refactors)} assertions (in {modified_files} files) have been refactored."
+        f"{len(refactors)} assertions (in {modified_files} files) have been"
+        " refactored."
     )
 
 

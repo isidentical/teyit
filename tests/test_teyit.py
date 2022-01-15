@@ -1,7 +1,6 @@
 import ast
 import unittest
 from pathlib import Path
-from textwrap import dedent
 
 import teyit
 

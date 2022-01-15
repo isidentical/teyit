@@ -1,7 +1,9 @@
 # Teyit
+
 An analyzer / formatter for your Python unit tests (more specifically, the tests written with the `unittest` module).
 
 ## Usage
+
 ```
 usage: teyit [-h] [--pattern PATTERN] [--show-stats] [--fail-on-change] [paths ...]
 
@@ -16,6 +18,7 @@ optional arguments:
 ```
 
 ### Pre-commit Hook
+
 ```yaml
 -   repo: https://github.com/isidentical/teyit
     rev: master
@@ -24,6 +27,7 @@ optional arguments:
 ```
 
 ## Examples
+
 Here are some examples from CPython's test suite:
 
 ```diff
@@ -49,7 +53,7 @@ Here are some examples from CPython's test suite:
          data = telnet.read_some()
 ```
 
-```
+```diff
 --- a/Lib/test/test___future__.py
 +++ b/Lib/test/test___future__.py
 @@ -13,8 +13,9 @@ def test_names(self):
@@ -66,7 +70,7 @@ Here are some examples from CPython's test suite:
                  given_feature_names.remove(name)
 ```
 
-```
+```diff
 --- a/Lib/test/test_abc.py
 +++ b/Lib/test/test_abc.py
 @@ -321,14 +321,14 @@ class A(metaclass=abc_ABCMeta):
@@ -79,7 +83,7 @@ Here are some examples from CPython's test suite:
 +            self.assertNotIsInstance(b, (A,))
 ```
 
-```
+```diff
 --- a/Lib/test/test_bigmem.py
 +++ b/Lib/test/test_bigmem.py
 @@ -536,25 +536,25 @@ def test_contains(self, size):
