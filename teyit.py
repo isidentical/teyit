@@ -206,13 +206,17 @@ class _AssertRewriter(ast.NodeVisitor):
 
     def visit_ClassDef(self, node):
         for child_node in ast.walk(node):
-            if not isinstance(child_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if not isinstance(
+                child_node, (ast.FunctionDef, ast.AsyncFunctionDef)
+            ):
                 continue
 
-            if not _looks_like_test(node.name) or not _looks_like_test(child_node.name):
+            if not _looks_like_test(node.name) or not _looks_like_test(
+                child_node.name
+            ):
                 continue
 
-            if not any(arg.arg == 'self' for arg in child_node.args.args):
+            if not any(arg.arg == "self" for arg in child_node.args.args):
                 continue
 
             visitor = _AssertStmtFinder()
@@ -220,22 +224,26 @@ class _AssertRewriter(ast.NodeVisitor):
 
             for assert_stmt in visitor.stmts:
                 # with suppress(Exception):
-                new_expr = self.visit_assertTrue(ast.Call(
-                    ast.Attribute(
-                        ast.Name('self', ast.Load),
-                        'assertTrue',
-                        ast.Load,
-                    ),
-                    [assert_stmt.test],
-                    [],  # TODO: support `msg` part
-                ))
+                new_expr = self.visit_assertTrue(
+                    ast.Call(
+                        ast.Attribute(
+                            ast.Name("self", ast.Load),
+                            "assertTrue",
+                            ast.Load,
+                        ),
+                        [assert_stmt.test],
+                        [],  # TODO: support `msg` part
+                    )
+                )
                 if new_expr is None:
                     continue
 
-                self.asserts.append(AssertStmtRewrite(
-                    node=assert_stmt,
-                    expr=new_expr,
-                ))
+                self.asserts.append(
+                    AssertStmtRewrite(
+                        node=assert_stmt,
+                        expr=new_expr,
+                    )
+                )
         self.generic_visit(node)
 
 
@@ -250,7 +258,7 @@ class _AssertStmtFinder(ast.NodeVisitor):
 
 
 def _looks_like_test(name):
-    return 'test' in name or 'Test' in name
+    return "test" in name or "Test" in name
 
 
 class _FormattedUnparser(PreciseUnparser):
