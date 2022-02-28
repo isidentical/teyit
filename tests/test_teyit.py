@@ -7,7 +7,7 @@ import teyit
 TEST_DATA_DIR = Path(__file__).parent
 
 
-class TeyitTestCase(unittest.TestCase):
+class BaseCase:
     def assertRewrites(self, given, expected, case_count=None, **kwargs):
         with self.subTest(given=given, expected=expected, **kwargs):
             source, cases = teyit.refactor_until_deterministic(given)
@@ -18,16 +18,18 @@ class TeyitTestCase(unittest.TestCase):
     def assertNotRewrites(self, given):
         self.assertRewrites(given, given, case_count=0)
 
+
+class TeyitTestCase(BaseCase, unittest.TestCase):
     def test_rewrite(self):
         func = ast.parse("self.assertTrue(x is None)", mode="eval").body
-        rewrite = teyit.Rewrite(func, "assertIsNone", [func.args[0].left])
+        rewrite = teyit.FunctionRewrite(func, "assertIsNone", [func.args[0].left])
         self.assertEqual(
             ast.unparse(rewrite.build_node()), "self.assertIsNone(x)"
         )
         self.assertEqual(rewrite.get_arg_offset(), 0)
 
         func = ast.parse("self.assertTrue(a == b)", mode="eval").body
-        rewrite = teyit.Rewrite(
+        rewrite = teyit.FunctionRewrite(
             func, "assertEqual", [func.args[0].left, *func.args[0].comparators]
         )
         self.assertEqual(rewrite.get_arg_offset(), 1)
@@ -35,7 +37,7 @@ class TeyitTestCase(unittest.TestCase):
         func = ast.parse(
             "self.assertTrue(x is None, message='XYZ')", mode="eval"
         ).body
-        rewrite = teyit.Rewrite(func, "assertIsNone", [func.args[0].left])
+        rewrite = teyit.FunctionRewrite(func, "assertIsNone", [func.args[0].left])
         self.assertEqual(
             ast.unparse(rewrite.build_node()),
             "self.assertIsNone(x, message='XYZ')",
@@ -44,7 +46,7 @@ class TeyitTestCase(unittest.TestCase):
         func = ast.parse(
             "self.assertIs(x, None, message='XYZ')", mode="eval"
         ).body
-        rewrite = teyit.Rewrite(func, "assertIsNone", [func.args[0]])
+        rewrite = teyit.FunctionRewrite(func, "assertIsNone", [func.args[0]])
         self.assertEqual(rewrite.get_arg_offset(), -1)
 
     def test_assert_rewriter_basic(self):
@@ -211,12 +213,46 @@ class TeyitTestCase(unittest.TestCase):
         )
 
     def test_assert_rewriter_cosmetic(self):
+        self.maxDiff = None
         for case in (TEST_DATA_DIR / "cosmetic").iterdir():
             self.assertRewrites(
                 (case / "input.py").read_text(),
                 (case / "output.py").read_text(),
                 case=case,
             )
+
+
+_TEST_CASE_TEMPLATE = """
+class TestCase:
+    def test_my(self):
+        {0}
+"""
+
+
+class AssertStmtTestCase(BaseCase, unittest.TestCase):
+    def assertStmtRewrites(self, given, expected):
+        self.assertRewrites(
+            _TEST_CASE_TEMPLATE.format(given),
+            _TEST_CASE_TEMPLATE.format(expected),
+        )
+
+    def test_assert_stmt_to_call(self):
+        self.assertStmtRewrites(
+            "assert x == y",
+            "self.assertEqual(x, y)",
+        )
+        self.assertStmtRewrites(
+            "assert x != y",
+            "self.assertNotEqual(x, y)",
+        )
+        self.assertStmtRewrites(
+            "assert x is y",
+            "self.assertIs(x, y)",
+        )
+        self.assertStmtRewrites(
+            "assert isinstance(x, y)",
+            "self.assertIsInstance(x, y)",
+        )
 
 
 if __name__ == "__main__":

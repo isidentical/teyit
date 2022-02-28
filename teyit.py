@@ -46,8 +46,14 @@ DEPRECATED_ALIASES = {
 }
 
 
-@dataclass
-class Rewrite:
+@dataclass(frozen=True)
+class FunctionRewrite:
+    """
+    Used to rewrite test functions.
+
+    Example: ``self.assertTrue(x == y)`` -> ``self.assertEqual(x, y)``
+    """
+
     node: ast.Call
     func: str
     args: List[ast.AST]
@@ -69,6 +75,34 @@ class Rewrite:
         return len(new_node.args + new_node.keywords) - prev_args
 
 
+@dataclass(frozen=True)
+class AssertStmtRewrite:
+    """
+    Used to rewrite ``assert`` statement into function calls.
+
+    Example: ``assert x == y`` -> ``self.assertEqual(x, y)``
+    """
+
+    node: ast.Assert
+    expr: FunctionRewrite
+
+    def __hash__(self):
+        return hash(id(self))
+
+    @lru_cache(maxsize=1)
+    def build_node(self):
+        new_node = self.expr.build_node()
+        new_node.lineno = self.node.lineno
+        new_node.col_offset = self.node.col_offset
+        new_node.end_lineno = self.node.end_lineno
+        new_node.end_col_offset = self.node.end_col_offset
+        return new_node
+
+    @lru_cache(maxsize=1)
+    def get_arg_offset(self):
+        return 2
+
+
 class _AssertRewriter(ast.NodeVisitor):
     def __init__(self, blacklist=frozenset(), *args, **kwargs):
         self.asserts = []
@@ -87,7 +121,7 @@ class _AssertRewriter(ast.NodeVisitor):
         with suppress(Exception):
             if node.func.attr in DEPRECATED_ALIASES:
                 self.asserts.append(
-                    Rewrite(
+                    FunctionRewrite(
                         node, DEPRECATED_ALIASES[node.func.attr], node.args
                     )
                 )
@@ -133,7 +167,7 @@ class _AssertRewriter(ast.NodeVisitor):
             args = [*expr.args, *args]
         else:
             return None
-        return Rewrite(node, func, args)
+        return FunctionRewrite(node, func, args)
 
     def visit_assertFalse(self, node):
         return self.visit_assertTrue(node, positive=False)
@@ -155,7 +189,7 @@ class _AssertRewriter(ast.NodeVisitor):
             args = [left, *args]
         else:
             return None
-        return Rewrite(node, func, args)
+        return FunctionRewrite(node, func, args)
 
     def visit_assertIsNot(self, node):
         return self.visit_assertIs(node, positive=False)
@@ -168,7 +202,55 @@ class _AssertRewriter(ast.NodeVisitor):
             ast.Dict(keys=[None, None], values=[right, left]),
             *args,
         ]
-        return Rewrite(node, func, args)
+        return FunctionRewrite(node, func, args)
+
+    def visit_ClassDef(self, node):
+        for child_node in ast.walk(node):
+            if not isinstance(child_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+
+            if not _looks_like_test(node.name) or not _looks_like_test(child_node.name):
+                continue
+
+            if not any(arg.arg == 'self' for arg in child_node.args.args):
+                continue
+
+            visitor = _AssertStmtFinder()
+            visitor.visit(child_node)
+
+            for assert_stmt in visitor.stmts:
+                # with suppress(Exception):
+                new_expr = self.visit_assertTrue(ast.Call(
+                    ast.Attribute(
+                        ast.Name('self', ast.Load),
+                        'assertTrue',
+                        ast.Load,
+                    ),
+                    [assert_stmt.test],
+                    [],  # TODO: support `msg` part
+                ))
+                if new_expr is None:
+                    continue
+
+                self.asserts.append(AssertStmtRewrite(
+                    node=assert_stmt,
+                    expr=new_expr,
+                ))
+        self.generic_visit(node)
+
+
+class _AssertStmtFinder(ast.NodeVisitor):
+    def __init__(self):
+        self.stmts = []
+
+    def visit_Assert(self, node):
+        # Is called with right context: inside an instance test method.
+        self.stmts.append(node)
+        self.generic_visit(node)
+
+
+def _looks_like_test(name):
+    return 'test' in name or 'Test' in name
 
 
 class _FormattedUnparser(PreciseUnparser):
