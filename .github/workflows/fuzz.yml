@@ -1,0 +1,46 @@
+name: Fuzz CPython
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz-cpython:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: python/cpython
+
+      - name: Install Dependencies
+        run: sudo ./.github/workflows/posix-deps-apt.sh
+
+      - name: Configure CPython
+        run: ./configure --with-pydebug
+
+      - name: Build CPython
+        run: make -j8
+
+      - uses: actions/checkout@v3
+        with:
+          path: teyit
+
+      - name: Install teyit
+        run: |
+          ./python -m ensurepip
+          ./python -m pip install --user ./teyit
+
+      - name: Run Teyit
+        run: ./python -m teyit Lib/test --show-stats
+
+      # Only run the tests that teyit actually made some changes
+      - name: Tests
+        run: ./python -m test -j8 $(git diff --name-only -- Lib/test | ./python -c "import sys;print(*[file.removeprefix('Lib/test/').removesuffix('.py') for file in sys.stdin.read().splitlines()], sep=' ')")

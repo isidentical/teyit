@@ -21,7 +21,7 @@ optional arguments:
 
 ```yaml
 -   repo: https://github.com/isidentical/teyit
-    rev: master
+    rev: 0.4.3
     hooks:
     -   id: teyit
 ```
@@ -102,14 +102,6 @@ Here are some examples from CPython's test suite:
 
 ## Public API
 
-#### `teyit.refactor(source: str, **kwargs) -> str`
+#### `teyit.refactor(source) -> str`
 
-Shortcut to `refactor_until_deterministic`, for only retrieving the source code.
-
-#### `def refactor_until_deterministic(source: str, blacklist: FrozenSet[str] = frozenset(), *, max: int = 5) -> Tuple[str, List[Rewrite]]`
-
-Run `rewrite_source` until it can't refactor no more (or the `max` limit reached).
-
-#### `def rewrite_source(source: str, *, blacklist: FrozenSet[str] = frozenset()): -> Tuple[str, List[Rewrite]]`
-
-Refactor the source code changing assertion cases to the right forms. The `blacklist` parameter is a frozenset of functions that shouldn't refactored (e.g: `frozenset(('assertX', 'assertY'))`).
+Run `teyit` on the given source code.

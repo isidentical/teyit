@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import ast
 import copy
@@ -7,7 +9,6 @@ from contextlib import suppress
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import List
 
 from refactor.ast import PreciseUnparser
 
@@ -50,7 +51,7 @@ DEPRECATED_ALIASES = {
 class Rewrite:
     node: ast.Call
     func: str
-    args: List[ast.AST]
+    args: list[ast.AST]
 
     def __hash__(self):
         return hash(id(self))
@@ -87,9 +88,7 @@ class _AssertRewriter(ast.NodeVisitor):
         with suppress(Exception):
             if node.func.attr in DEPRECATED_ALIASES:
                 self.asserts.append(
-                    Rewrite(
-                        node, DEPRECATED_ALIASES[node.func.attr], node.args
-                    )
+                    Rewrite(node, DEPRECATED_ALIASES[node.func.attr], node.args)
                 )
             elif not hasattr(self, visitor_proc):
                 return node
@@ -113,7 +112,6 @@ class _AssertRewriter(ast.NodeVisitor):
                 and isinstance(comparator, ast.Constant)
                 and comparator.value is None
             ):
-
                 func = f"assert{operator.__name__}None"
                 args = [left, *args]
             elif operator in OPERATOR_TABLE:
@@ -207,9 +205,7 @@ class _FormattedUnparser(PreciseUnparser):
         self.write(")")
 
 
-def as_source(
-    source, node, *, is_multi_line=False, comments=None, next_indent=4
-):
+def as_source(source, node, *, is_multi_line=False, comments=None, next_indent=4):
     indent = node.col_offset
     if is_multi_line:
         formatted_unparser = _FormattedUnparser(
@@ -330,8 +326,7 @@ def _show_debug_stats(modified_files, refactors):
             "times.",
         )
     print(
-        f"{len(refactors)} assertions (in {modified_files} files) have been"
-        " refactored."
+        f"{len(refactors)} assertions (in {modified_files} files) have been refactored."
     )
 
 
@@ -339,9 +334,7 @@ def _refactor_file(path, **kwargs):
     with tokenize.open(path) as file:
         source = file.read()
         encoding = file.encoding
-    refactored_source, refactors = refactor_until_deterministic(
-        source, **kwargs
-    )
+    refactored_source, refactors = refactor_until_deterministic(source, **kwargs)
     if refactored_source != source:
         path.write_text(refactored_source, encoding=encoding)
     return refactors
