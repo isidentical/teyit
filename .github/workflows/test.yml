@@ -1,66 +1,37 @@
+name: Tests
+
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - '*'
 
-name: Tests
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: true
-
       matrix:
         os: [ubuntu-latest, macos-latest]
-        pyv: ["3.9", "3.10"]
+        python-version: ["3.9", "3.10", "3.11"]
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-    - uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.pyv }}
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
 
-    - name: Install dependencies
-      run: |
-        python -m pip install -r requirements-dev.txt
-        python -m pip install -e .
+      - name: Install dependencies
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e .
 
-    - name: Test
-      run: python -m pytest
-
-  cpython:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        repository: python/cpython
-
-    - name: Install Dependencies
-      run: sudo ./.github/workflows/posix-deps-apt.sh
-
-    - name: Configure CPython
-      run: ./configure --with-pydebug
-
-    - name: Build CPython
-      run: make -j8
-
-    - uses: actions/checkout@v2
-      with:
-        path: teyit
-
-    - name: Install teyit
-      run: |
-        ./python -m ensurepip
-        ./python -m pip install --user teyit
-
-    - name: Run Teyit
-      run: ./python -m teyit Lib/test --show-stats
-
-    - name: Tests
-      run: ./python -m test -j8 $(git diff --name-only -- Lib/test | ./python -c "import sys;print(*[file.removeprefix('Lib/test/').removesuffix('.py') for file in sys.stdin.read().splitlines()], sep=' ')")
+      - name: Test
+        run: python -m pytest

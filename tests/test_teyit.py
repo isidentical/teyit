@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import ast
 import unittest
 from pathlib import Path
@@ -21,9 +23,7 @@ class TeyitTestCase(unittest.TestCase):
     def test_rewrite(self):
         func = ast.parse("self.assertTrue(x is None)", mode="eval").body
         rewrite = teyit.Rewrite(func, "assertIsNone", [func.args[0].left])
-        self.assertEqual(
-            ast.unparse(rewrite.build_node()), "self.assertIsNone(x)"
-        )
+        self.assertEqual(ast.unparse(rewrite.build_node()), "self.assertIsNone(x)")
         self.assertEqual(rewrite.get_arg_offset(), 0)
 
         func = ast.parse("self.assertTrue(a == b)", mode="eval").body
@@ -32,52 +32,30 @@ class TeyitTestCase(unittest.TestCase):
         )
         self.assertEqual(rewrite.get_arg_offset(), 1)
 
-        func = ast.parse(
-            "self.assertTrue(x is None, message='XYZ')", mode="eval"
-        ).body
+        func = ast.parse("self.assertTrue(x is None, message='XYZ')", mode="eval").body
         rewrite = teyit.Rewrite(func, "assertIsNone", [func.args[0].left])
         self.assertEqual(
             ast.unparse(rewrite.build_node()),
             "self.assertIsNone(x, message='XYZ')",
         )
 
-        func = ast.parse(
-            "self.assertIs(x, None, message='XYZ')", mode="eval"
-        ).body
+        func = ast.parse("self.assertIs(x, None, message='XYZ')", mode="eval").body
         rewrite = teyit.Rewrite(func, "assertIsNone", [func.args[0]])
         self.assertEqual(rewrite.get_arg_offset(), -1)
 
     def test_assert_rewriter_basic(self):
-        self.assertRewrites(
-            "self.assertTrue(x == y)", "self.assertEqual(x, y)"
-        )
-        self.assertRewrites(
-            "self.assertTrue(x != y)", "self.assertNotEqual(x, y)"
-        )
+        self.assertRewrites("self.assertTrue(x == y)", "self.assertEqual(x, y)")
+        self.assertRewrites("self.assertTrue(x != y)", "self.assertNotEqual(x, y)")
         self.assertRewrites("self.assertTrue(x < y)", "self.assertLess(x, y)")
-        self.assertRewrites(
-            "self.assertTrue(x <= y)", "self.assertLessEqual(x, y)"
-        )
-        self.assertRewrites(
-            "self.assertTrue(x > y)", "self.assertGreater(x, y)"
-        )
-        self.assertRewrites(
-            "self.assertTrue(x >= y)", "self.assertGreaterEqual(x, y)"
-        )
+        self.assertRewrites("self.assertTrue(x <= y)", "self.assertLessEqual(x, y)")
+        self.assertRewrites("self.assertTrue(x > y)", "self.assertGreater(x, y)")
+        self.assertRewrites("self.assertTrue(x >= y)", "self.assertGreaterEqual(x, y)")
         self.assertRewrites("self.assertTrue(x in y)", "self.assertIn(x, y)")
-        self.assertRewrites(
-            "self.assertTrue(x not in y)", "self.assertNotIn(x, y)"
-        )
+        self.assertRewrites("self.assertTrue(x not in y)", "self.assertNotIn(x, y)")
         self.assertRewrites("self.assertTrue(x is y)", "self.assertIs(x, y)")
-        self.assertRewrites(
-            "self.assertTrue(x is not y)", "self.assertIsNot(x, y)"
-        )
-        self.assertRewrites(
-            "self.assertTrue(x is None)", "self.assertIsNone(x)"
-        )
-        self.assertRewrites(
-            "self.assertTrue(x is not None)", "self.assertIsNotNone(x)"
-        )
+        self.assertRewrites("self.assertTrue(x is not y)", "self.assertIsNot(x, y)")
+        self.assertRewrites("self.assertTrue(x is None)", "self.assertIsNone(x)")
+        self.assertRewrites("self.assertTrue(x is not None)", "self.assertIsNotNone(x)")
         self.assertRewrites(
             "self.assertTrue(isinstance(x, y))", "self.assertIsInstance(x, y)"
         )
@@ -86,30 +64,14 @@ class TeyitTestCase(unittest.TestCase):
             "self.assertIsInstance(x, (y, z))",
         )
 
-        self.assertRewrites(
-            "self.assertFalse(x == y)", "self.assertNotEqual(x, y)"
-        )
-        self.assertRewrites(
-            "self.assertFalse(x != y)", "self.assertEqual(x, y)"
-        )
-        self.assertRewrites(
-            "self.assertFalse(x in y)", "self.assertNotIn(x, y)"
-        )
-        self.assertRewrites(
-            "self.assertFalse(x not in y)", "self.assertIn(x, y)"
-        )
-        self.assertRewrites(
-            "self.assertFalse(x is y)", "self.assertIsNot(x, y)"
-        )
-        self.assertRewrites(
-            "self.assertFalse(x is not y)", "self.assertIs(x, y)"
-        )
-        self.assertRewrites(
-            "self.assertFalse(x is None)", "self.assertIsNotNone(x)"
-        )
-        self.assertRewrites(
-            "self.assertFalse(x is not None)", "self.assertIsNone(x)"
-        )
+        self.assertRewrites("self.assertFalse(x == y)", "self.assertNotEqual(x, y)")
+        self.assertRewrites("self.assertFalse(x != y)", "self.assertEqual(x, y)")
+        self.assertRewrites("self.assertFalse(x in y)", "self.assertNotIn(x, y)")
+        self.assertRewrites("self.assertFalse(x not in y)", "self.assertIn(x, y)")
+        self.assertRewrites("self.assertFalse(x is y)", "self.assertIsNot(x, y)")
+        self.assertRewrites("self.assertFalse(x is not y)", "self.assertIs(x, y)")
+        self.assertRewrites("self.assertFalse(x is None)", "self.assertIsNotNone(x)")
+        self.assertRewrites("self.assertFalse(x is not None)", "self.assertIsNone(x)")
         self.assertRewrites(
             "self.assertFalse(isinstance(x, y))",
             "self.assertNotIsInstance(x, y)",
@@ -125,17 +87,11 @@ class TeyitTestCase(unittest.TestCase):
 
         self.assertNotRewrites("self.assertIsNot(x, True)")
         self.assertNotRewrites("self.assertIsNot(x, False)")
-        self.assertRewrites(
-            "self.assertIsNot(x, None)", "self.assertIsNotNone(x)"
-        )
+        self.assertRewrites("self.assertIsNot(x, None)", "self.assertIsNotNone(x)")
 
     def test_assert_rewriter_multiple(self):
-        self.assertRewrites(
-            "self.assertIs(x is y, True)", "self.assertIs(x, y)"
-        )
-        self.assertRewrites(
-            "self.assertIs(x is y, False)", "self.assertIsNot(x, y)"
-        )
+        self.assertRewrites("self.assertIs(x is y, True)", "self.assertIs(x, y)")
+        self.assertRewrites("self.assertIs(x is y, False)", "self.assertIsNot(x, y)")
         self.assertRewrites(
             "self.assertIs(isinstance(x, T), False)",
             "self.assertNotIsInstance(x, T)",
